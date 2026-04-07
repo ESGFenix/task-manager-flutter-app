@@ -9,6 +9,12 @@ class TaskProvider extends ChangeNotifier {
 
   final TaskRepository _taskRepository = TaskRepository();
 
+  Future<void> initialize() async {
+    await fetchCategories();
+    await fetchTasks();
+    await _ensureMockData();
+  }
+
   Future<void> fetchTasks() async {
     _taskList = await _taskRepository.getTasks();
     notifyListeners();
@@ -37,5 +43,38 @@ class TaskProvider extends ChangeNotifier {
   Future<void> addNewCategory(TaskCategory category) async {
     await _taskRepository.addCategory(category);
     await fetchCategories();
+  }
+
+  Future<void> updateTask(Task originalTask, Task updatedTask) async {
+    final index = _taskList.indexOf(originalTask);
+    if(index == -1) return;
+    _taskList[index] = updatedTask;
+    await _taskRepository.saveTasks(_taskList);
+    notifyListeners();
+  }
+
+  Future<void> deleteTask(Task task) async {
+    _taskList.remove(task);
+    await _taskRepository.saveTasks(_taskList);
+    notifyListeners();
+  }
+
+  Future<void> _ensureMockData() async {
+    if (_categories.any((category) => category.id == 'mock-category')) return;
+
+    const mockCategory = TaskCategory(id: 'mock-category', name: 'Mock');
+    await addNewCategory(mockCategory);
+
+    if(_taskList.isEmpty){
+      await addNewTask(
+        Task(
+          'Preparar demo de acordeones',
+          'Esta tarea mock sirve para visualizar la UI inicial de categorías y tareas.',
+          dueDate: DateTime.now().add(const Duration(days: 7)),
+          taskState: TaskState.PENDING,
+          categoryId: mockCategory.id,
+        ),
+      );
+    }
   }
 }

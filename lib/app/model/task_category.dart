@@ -4,7 +4,7 @@ part 'task_category.g.dart';
 
 @JsonSerializable()
 class TaskCategory {
-  TaskCategory({
+  const TaskCategory({
     required this.id,
     required this.name,
   });
