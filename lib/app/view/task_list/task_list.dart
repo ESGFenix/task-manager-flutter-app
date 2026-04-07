@@ -32,15 +32,27 @@ class _Header extends StatelessWidget {
       width: double.infinity,
       color: Theme.of(context).colorScheme.primary,
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(children: const [Shape()]),
-          Column(
-            children: [
-              const SizedBox(height: 1),
-              const H1('Completa tus tareas', color: Colors.white,),
-              const SizedBox(height: 5,),
-            ],
+          SizedBox(
+            height: 129, //Tamaño del Shape
+            child: Stack(
+              children: const [
+                Align(
+                  alignment: Alignment.topLeft,
+                  child: Shape(),
+                ),
+                Align(
+                  alignment: Alignment.center,
+                  child: H1(
+                    'Completa tus tareas',
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
           ),
+          SizedBox(height: 10,),
         ],
       )
     );
