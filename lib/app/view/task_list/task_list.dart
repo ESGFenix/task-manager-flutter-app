@@ -45,32 +45,35 @@ class _TaskCategoriesAccordion extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Accordion(
             headerBackgroundColorOpened: Theme.of(context).colorScheme.primary,
-            headerPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            headerPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 12,
+            ),
             contentBorderColor: Colors.transparent,
             scaleWhenAnimating: false,
             openAndCloseAnimation: true,
             children: categories
                 .map(
                   (category) => AccordionSection(
-                isOpen: category.id == 'mock-category',
-                leftIcon: const Icon(Icons.folder_open_outlined),
-                header: Text(
-                  category.name,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                contentBackgroundColor: Colors.white,
-                headerBackgroundColor: Colors.white,
-                headerBackgroundColorOpened:
-                Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                content: _CategoryTasksList(
-                  category: category,
-                  tasks: tasks
-                      .where((task) => task.categoryId == category.id)
-                      .toList(),
-                ),
-              ),
-            )
+                    isOpen: category.id == 'mock-category',
+                    leftIcon: const Icon(Icons.folder_open_outlined),
+                    header: Text(
+                      category.name,
+                      style: const TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    contentBackgroundColor: Colors.white,
+                    headerBackgroundColor: Colors.white,
+                    headerBackgroundColorOpened: Theme.of(
+                      context,
+                    ).colorScheme.primary.withValues(alpha: 0.15),
+                    content: _CategoryTasksList(
+                      category: category,
+                      tasks: tasks
+                          .where((task) => task.categoryId == category.id)
+                          .toList(),
+                    ),
+                  ),
+                )
                 .toList(),
           ),
         );
@@ -80,10 +83,7 @@ class _TaskCategoriesAccordion extends StatelessWidget {
 }
 
 class _CategoryTasksList extends StatelessWidget {
-  const _CategoryTasksList({
-    required this.category,
-    required this.tasks,
-  });
+  const _CategoryTasksList({required this.category, required this.tasks});
 
   final TaskCategory category;
   final List<Task> tasks;
@@ -98,47 +98,83 @@ class _CategoryTasksList extends StatelessWidget {
     }
 
     return Column(
-      children: tasks
-          .map(
-            (task) => _TaskListTile(
-          task: task,
-        ),
-      )
-          .toList(),
+      children: tasks.map((task) => _TaskListTile(task: task)).toList(),
     );
   }
 }
 
-class _TaskListTile extends StatelessWidget {
-  const _TaskListTile({
-    required this.task,
-  });
+class _TaskListTile extends StatefulWidget {
+  const _TaskListTile({required this.task});
 
   final Task task;
 
   @override
+  State<_TaskListTile> createState() => _TaskListTileState();
+}
+
+class _TaskListTileState extends State<_TaskListTile> {
+  double _swipeProgress = 0;
+
+  @override
   Widget build(BuildContext context) {
-    return Card(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        onTap: () => _showTaskModal(context, task),
-        title: Text(task.title),
-        subtitle: Text(
-          task.dueDate == null
-              ? 'Sin fecha límite'
-              : 'Fecha límite: ${_formatDate(task.dueDate!)}',
+    final task = widget.task;
+
+    return Dismissible(
+      key: ValueKey('${task.title}-${task.description}-${task.hashCode}'),
+      direction: DismissDirection.startToEnd,
+      background: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsetsGeometry.symmetric(horizontal: 20),
+        decoration: BoxDecoration(
+          color: Colors.green.withValues(
+            alpha: (0.12 + (_swipeProgress * 0.88)).clamp(0.12, 1.0),
+          ),
+          borderRadius: BorderRadiusGeometry.circular(14),
         ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _StateBadge(taskState: task.taskState),
-            const SizedBox(width: 8),
-            IconButton(
-              onPressed: () => context.read<TaskProvider>().deleteTask(task),
-              icon: const Icon(Icons.delete_outline),
-            ),
-          ],
+        alignment: Alignment.centerLeft,
+        child: Icon(
+          Icons.check,
+          color: Colors.white.withValues(alpha: 0.6 + (_swipeProgress * 0.4)),
+        ),
+      ),
+      onUpdate: (details) {
+        final progress = details.progress.clamp(0.0, 1.0);
+        if ((_swipeProgress - progress).abs() > 0.01) {
+          setState(() => _swipeProgress = progress);
+        }
+      },
+      confirmDismiss: (direction) async {
+        if (direction == DismissDirection.startToEnd) {
+          await context.read<TaskProvider>().onTaskDoneChange(task);
+        }
+        if (mounted) {
+          setState(() => _swipeProgress = 0);
+        }
+        return false;
+      },
+      child: Card(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        margin: const EdgeInsets.only(bottom: 8),
+        child: ListTile(
+          onTap: () => _showTaskModal(context, widget.task),
+          title: Text(widget.task.title),
+          subtitle: Text(
+            widget.task.dueDate == null
+                ? 'Sin fecha límite'
+                : 'Fecha límite: ${_formatDate(widget.task.dueDate!)}',
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _StateBadge(taskState: widget.task.taskState),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: () =>
+                    context.read<TaskProvider>().deleteTask(widget.task),
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -238,16 +274,20 @@ Future<void> _showTaskModal(BuildContext context, Task task) async {
                               setState(() => selectedDueDate = result);
                             }
                           },
-                          child: Text(
-                            selectedDueDate == null
-                                ? 'Fecha límite'
-                                : _formatDate(selectedDueDate!),
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              selectedDueDate == null
+                                  ? 'Fecha límite'
+                                  : _formatDate(selectedDueDate!),
+                            ),
                           ),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Expanded(
                         child: DropdownButtonFormField<String>(
+                          isExpanded: true,
                           initialValue: selectedCategoryId,
                           decoration: const InputDecoration(
                             border: OutlineInputBorder(),
@@ -256,10 +296,14 @@ Future<void> _showTaskModal(BuildContext context, Task task) async {
                           items: [
                             const DropdownMenuItem<String>(
                               value: '__new_category__',
-                              child: Text('+ Crear categoría'),
+                              child: Text(
+                                '+ Crear categoría',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                             ...provider.categories.map(
-                                  (category) => DropdownMenuItem<String>(
+                              (category) => DropdownMenuItem<String>(
                                 value: category.id,
                                 child: Text(category.name),
                               ),
@@ -268,8 +312,9 @@ Future<void> _showTaskModal(BuildContext context, Task task) async {
                           onChanged: (value) async {
                             if (value == '__new_category__') {
                               final newCategoryName =
-                              await _showCreateCategoryDialog(context);
-                              if (newCategoryName == null || newCategoryName.isEmpty) {
+                                  await _showCreateCategoryDialog(context);
+                              if (newCategoryName == null ||
+                                  newCategoryName.isEmpty) {
                                 return;
                               }
                               final category = TaskCategory(
@@ -305,15 +350,31 @@ Future<void> _showTaskModal(BuildContext context, Task task) async {
                     child: const Text('Guardar cambios'),
                   ),
                   const SizedBox(height: 8),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: () async {
-                        await provider.deleteTask(task);
-                        if (context.mounted) Navigator.of(context).pop();
-                      },
-                      icon: const Icon(Icons.delete_outline),
-                      label: const Text('Borrar tarea'),
-                    ),
+                  OverflowBar(
+                    alignment: MainAxisAlignment.center,
+                    spacing: 8,
+                    overflowAlignment: OverflowBarAlignment.center,
+                    overflowDirection: VerticalDirection.down,
+                    overflowSpacing: 4,
+                    children: [
+                      TextButton.icon(
+                        onPressed: () async {
+                          await provider.onTaskDoneChange(task);
+                          if (context.mounted) Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.check),
+                        label: Text( task.done ? 'Marcar como pendiente' : 'Marcar como hecho'),
+                      ),
+                      const SizedBox(width: 8),
+                      TextButton.icon(
+                        onPressed: () async {
+                          await provider.deleteTask(task);
+                          if (context.mounted) Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.delete_outline),
+                        label: const Text('Borrar tarea'),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -373,23 +434,17 @@ class _Header extends StatelessWidget {
             height: 129, //Tamaño del Shape
             child: Stack(
               children: const [
-                Align(
-                  alignment: Alignment.topLeft,
-                  child: Shape(),
-                ),
+                Align(alignment: Alignment.topLeft, child: Shape()),
                 Align(
                   alignment: Alignment.center,
-                  child: H1(
-                    'Completa tus tareas',
-                    color: Colors.white,
-                  ),
+                  child: H1('Completa tus tareas', color: Colors.white),
                 ),
               ],
             ),
           ),
-          SizedBox(height: 10,),
+          SizedBox(height: 10),
         ],
-      )
+      ),
     );
   }
 }
